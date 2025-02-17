@@ -1,8 +1,10 @@
-# WeatherSense - ESP8266 Weather Station
+# ESP8266 Weather Station
 
-WeatherSense is a simple weather monitoring system built using an ESP8266, a DHT11 sensor for temperature and humidity readings, and a local PHP server to store and display the data. The ESP8266 acts as an access point and runs a web server to handle data requests.
+A simple weather monitoring system built using an ESP8266, a DHT11 sensor for temperature and humidity readings, and a local PHP server to store and display the data. The ESP8266 acts as an access point and runs a web server to handle data requests.
 
-![WeatherSense Overview](https://your-image-link.com/overview.jpg)
+![Overview](./SS.png)
+![Overview](./SS2.png)
+
 
 ## Features
 
