@@ -4,7 +4,11 @@ function fetchData() {
     method: "GET",
     success: function (response) {
       $("#sensorTable").html(response);
+      updateTimestamps(); // Ensure timestamps are updated after data is loaded
     },
+    error: function (xhr, status, error) {
+      console.error("Error fetching data:", error);
+    }
   });
 }
 
@@ -14,47 +18,59 @@ function exportToExcel() {
   let csv = [];
 
   let header = [];
-  let headers = document.getElementsByTagName("th");
+  let headers = table.getElementsByTagName("th"); 
   for (let i = 0; i < headers.length; i++) {
-    header.push(headers[i].innerText);
+    header.push(headers[i].innerText.trim());
   }
   csv.push(header.join(","));
 
-  // Loop through rows to gather data, including the timestamp
+  // Loop through rows
   for (let i = 0; i < rows.length; i++) {
     let row = [];
     let cells = rows[i].getElementsByTagName("td");
     for (let j = 0; j < cells.length; j++) {
-      row.push(cells[j].innerText);
+      let cellData = cells[j].innerText.trim();
+      if (j === 3) { // Assuming timestamp is in column index 3
+        cellData = `"${cellData}"`; // Keep timestamp format
+      }
+      row.push(cellData);
     }
-    // Ensure timestamp is added to each row (it's already part of the table)
     csv.push(row.join(","));
   }
 
-  // Create CSV content
   let csvContent = "data:text/csv;charset=utf-8," + csv.join("\n");
   let encodedUri = encodeURI(csvContent);
   let link = document.createElement("a");
   link.setAttribute("href", encodedUri);
   link.setAttribute("download", "sensor_data.csv");
+  document.body.appendChild(link);
   link.click();
+  document.body.removeChild(link);
 }
+
 
 function deleteAllData() {
   if (confirm("Are you sure you want to delete all records?")) {
     $.ajax({
-      url: "index.php", // The same PHP file
+      url: "index.php",
       method: "POST",
       data: { delete_all: true },
       success: function (response) {
-        let result = JSON.parse(response);
-        if (result.status === "success") {
-          alert(result.message);
-          fetchData(); // Refresh the table
-        } else {
-          alert(result.message);
+        try {
+          let result = JSON.parse(response);
+          if (result.status === "success") {
+            alert(result.message);
+            fetchData();
+          } else {
+            alert(result.message);
+          }
+        } catch (e) {
+          console.error("Invalid JSON response:", response);
         }
       },
+      error: function (xhr, status, error) {
+        console.error("Error deleting data:", error);
+      }
     });
   }
 }
@@ -65,40 +81,46 @@ $(document).ready(function () {
 });
 
 function formatTimestampTo12Hour(timestamp) {
-  let date = new Date(timestamp);
+  if (!timestamp) return "Invalid Time"; // Handle empty or invalid timestamps
+
+  let dateParts = timestamp.split(/[- :]/); // Handle "YYYY-MM-DD HH:MM:SS"
+  if (dateParts.length < 5) return "Invalid Time"; // Ensure correct format
+
+  let date = new Date(
+    dateParts[0], // Year
+    dateParts[1] - 1, // Month (zero-based)
+    dateParts[2], // Day
+    dateParts[3], // Hour
+    dateParts[4], // Minute
+    dateParts[5] // Second
+  );
+
   let hours = date.getHours();
   let minutes = date.getMinutes();
   let seconds = date.getSeconds();
   let ampm = hours >= 12 ? "PM" : "AM";
 
   // Convert to 12-hour format
-  hours = hours % 12;
-  hours = hours ? hours : 12; // Handle midnight as 12, not 0
+  hours = hours % 12 || 12;
   minutes = minutes < 10 ? "0" + minutes : minutes;
   seconds = seconds < 10 ? "0" + seconds : seconds;
 
-  // Return formatted time
-  return hours + ":" + minutes + ":" + seconds + " " + ampm;
+  return `${hours}:${minutes}:${seconds} ${ampm}`;
 }
 
 function updateTimestamps() {
-  // Iterate through each row and update the timestamp
   let rows = document.querySelectorAll("#sensorTable tr");
   rows.forEach(function (row) {
-    let timestampCell = row.cells[3]; // Assuming the timestamp is in the 4th column
+    let timestampCell = row.cells[3]; // Assuming timestamp is in the 4th column
     if (timestampCell) {
       let originalTimestamp = timestampCell.innerText.trim();
-      // Convert the timestamp and update the cell content
       timestampCell.innerText = formatTimestampTo12Hour(originalTimestamp);
     }
   });
 }
 
-// Call the updateTimestamps function when the page loads or when the table is refreshed
+// Ensure timestamps update after fetching data
 $(document).ready(function () {
-  updateTimestamps();
-  setInterval(function () {
-    fetchData();
-    updateTimestamps();
-  }, 3000);
+  fetchData();
+  setInterval(fetchData, 3000);
 });
